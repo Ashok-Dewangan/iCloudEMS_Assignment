@@ -202,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
 
         $module_id = $modules['academic'];
 
-        if (strpos($row['f_name'], 'fine') !== false) {
+        if (strpos($row['f_name'], 'Fine') !== false) {
             $module_id = $modules['academicmisc'];
         } elseif (strpos($row['f_name'], 'Mess') !== false) {
             $module_id = $modules['hostel'];
