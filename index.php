@@ -50,7 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
             adjusted_amount DECIMAL(12,2),
             refund_amount DECIMAL(12,2),
             fund_transfer_amount DECIMAL(12,2),
-            remarks VARCHAR(255)
+            remarks VARCHAR(255),
+            INDEX (voucherno),
+            INDEX (Entrymode),
+            INDEX (fee_category),
+            INDEX (f_name),
+            
         )
     ";
     $conn->query($createTempTable);
