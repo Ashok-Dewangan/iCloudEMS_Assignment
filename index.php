@@ -172,8 +172,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
     ");
 
     // table- feetypes
-
-    // Get distinct f_name, Seq_id 
     $fname_seq_ids = [];
     $ftypes = $conn->query("SELECT f_name, Seq_id  FROM feetypes GROUP BY f_name, Seq_id");
     while ($row = $ftypes->fetch_assoc()) {
@@ -184,6 +182,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
     $moduleTypes = $conn->query("SELECT ModuleID, Module FROM module");
     while ($row = $moduleTypes->fetch_assoc()) {
         $modules[$row['Module']] = $row['ModuleID'];
+    }
+
+    $branches = [];
+    $branchTypes = $conn->query("SELECT id, branch_name FROM branches");
+    while ($row = $branchTypes->fetch_assoc()) {
+        $branches[$row['branch_name']] = $row['id'];
+    }
+
+    $entryModes = [];
+    $entryModeTypes = $conn->query("SELECT Entry_modename, crdr FROM entrymode");
+    while ($row = $entryModeTypes->fetch_assoc()) {
+        $entryModes[$row['Entry_modename']] = $row['crdr'];
     }
 
 
@@ -228,6 +238,147 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
         ");
     }
 
+    $greenEntryModes = ['RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer'];
+    $redEntryModes = ['DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION'];
+
+
+    // table Common_fee_collection - Green
+    $commonFeeCollection = $conn->query("
+        SELECT 
+            *, 
+            SUM(paid_amount + adjusted_amount + refund_amount + fund_transfer_amount) AS amount,
+            CASE 
+                WHEN Entrymode IN ('RCPT', 'JV', 'PMT') THEN 0
+                WHEN Entrymode IN ('REVRCPT', 'REVJV', 'REVPMT') THEN 1
+                ELSE NULL
+            END AS inactive
+        FROM temp_import WHERE Entrymode IN ('RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer') 
+        GROUP BY voucherno");
+
+    while ($row = $commonFeeCollection->fetch_assoc()) {
+
+        if (isset($branches[$row['branch_name']])) {
+            $brId = $branches[$row['branch_name']];
+        } else {
+            $brId = 0;
+        }
+
+        $module_id = $modules['academic'];
+
+        if (strpos($row['f_name'], 'Fine') !== false) {
+            $module_id = $modules['academicmisc'];
+        } elseif (strpos($row['f_name'], 'Mess') !== false) {
+            $module_id = $modules['hostel'];
+        }
+
+        $result = $conn->query("
+            INSERT INTO common_fee_collection (moduleId, transId, admno, rollno, amount, brId, acadamicYear, financialYear, displayReceiptNo, Entrymode, PaidDate, inactive) values (
+                '{$module_id}',
+                '{$row['voucherno']}',
+                '{$row['admno']}',
+                '{$row['rollno']}',
+                '{$row['amount']}',
+                '{$brId}',
+                '{$row['acadYear']}',
+                '{$row['financialYear']}',
+                '{$row['receiptId']}',
+                '{$row['Entrymode']}',
+                '{$row['tranDate']}',
+                '{$row['inactive']}'
+            )
+        ");
+
+        $insert_id = $conn->insert_id;
+
+        if ($result) {
+            $conn->query("
+                INSERT INTO commonfeecollectionheadwise (moduleId, receiptId, headId, headName, brid, amount)
+                SELECT 
+                    '{$module_id}' AS moduleId,
+                    '{$insert_id}' AS receiptId,
+                    feetypes.id AS headId,
+                    feetypes.f_name AS headName,
+                    '{$brId}' AS brid,
+                    SUM(due_amount + paid_amount + concession_amount + scholarship_amount + refund_amount + fund_transfer_amount) AS amount
+                FROM temp_import
+                JOIN feetypes ON feetypes.f_name = temp_import.f_name AND feetypes.br_id = '{$brId}'
+                WHERE voucherno = '{$row['voucherno']}'
+                GROUP BY feetypes.id
+            ");
+        }
+    }
+
+   
+    // table financialtran - Red
+    $financialTransaction = $conn->query("
+        SELECT 
+            *, 
+            SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount,
+            CASE 
+                WHEN concession_amount > 0 THEN 1
+                WHEN scholarship_amount > 0 THEN 2
+                ELSE NULL
+            END AS Typeofconcession
+        FROM temp_import WHERE Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION') 
+        GROUP BY voucherno");
+
+    while ($row = $financialTransaction->fetch_assoc()) {
+
+        if (isset($branches[$row['branch_name']])) {
+            $brId = $branches[$row['branch_name']];
+        } else {
+            $brId = 0;
+        }
+
+        $module_id = $modules['academic'];
+
+        if (strpos($row['f_name'], 'Fine') !== false) {
+            $module_id = $modules['academicmisc'];
+        } elseif (strpos($row['f_name'], 'Mess') !== false) {
+            $module_id = $modules['hostel'];
+        }
+
+        if(isset($entryModes[$row['Entrymode']])){
+            $crdr = $entryModes[$row['Entrymode']];
+        } else {
+            $crdr = '';
+        }
+
+        $result = $conn->query("
+            INSERT INTO financialtran 
+                (moduleid, transid, admno, amount, crdr, tranDate, acadYear, Entrymode, voucherno, brid, Typeofconcession)
+            VALUES (
+                '{$module_id}',
+                '{$row['voucherno']}',
+                '{$row['admno']}',
+                '{$row['amount']}',
+                '{$crdr}',
+                '{$row['tranDate']}',
+                '{$row['acadYear']}',
+                '{$row['Entrymode']}',
+                '{$row['voucherno']}',
+                '{$brId}',
+                '{$row['Typeofconcession']}'
+            )
+        ");
+
+        $insert_id = $conn->insert_id;
+
+        if ($result) {
+            $conn->query("
+                INSERT INTO financialtrandetail (financialTranId, moduleId, amount, headId, crcd, brid)
+                SELECT 
+                    '{$insert_id}' AS financialTranId,
+                    '{$module_id}' AS moduleId,
+                    SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount,
+                    feetypes.id AS headId,
+                    '{$crdr}' AS crcd,
+                    '{$brId}' AS brid
+                FROM temp_import
+                JOIN feetypes ON feetypes.f_name = temp_import.f_name AND feetypes.br_id = '{$brId}'
+                WHERE voucherno = '{$row['voucherno']}'
+                GROUP BY feetypes.id
+            ");
 
     echo "Data distribution completed.";
 }
