@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
 
     // Create temporary table with indexes
     $createTempTable = "
-        CREATE TEMPORARY TABLE  temp_import (
+        CREATE TABLE  temp_import (
             sr_no INT,
             tranDate VARCHAR(15),
             acadYear VARCHAR(15),
@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
             $stmt->bind_param(
                 "sssssssssssssssssssssssssss",
                 $data[0],
-                date('Y-m-d', strtotime($data[1])),
+                $data[1],
                 $data[2],
                 $data[3],
                 $data[4],
@@ -301,7 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                         f_name, 
                         SUM(paid_amount + adjusted_amount + refund_amount + fund_transfer_amount) AS amount
                     FROM temp_import
-                    WHERE voucherno = '{$row['voucherno']}'
+                    WHERE voucherno = '{$row['voucherno']}' AND Entrymode IN ('RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer')
                     GROUP BY f_name
                 ");
 
@@ -380,7 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                         f_name, 
                         SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount
                     FROM temp_import
-                    WHERE voucherno = '{$row['voucherno']}'
+                    WHERE voucherno = '{$row['voucherno']}' AND Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION')
                     GROUP BY f_name
                 ");
 
