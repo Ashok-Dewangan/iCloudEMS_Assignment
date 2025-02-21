@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
 
     // Create temporary table without indexes
     $createTempTable = "
-        CREATE TEMPORARY TABLE temp_import (
+        CREATE TABLE temp_import (
             sr_no INT,
             tranDate VARCHAR(15),
             acadYear VARCHAR(15),
@@ -306,10 +306,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
         $commonFeeCollection = $conn->query("
             SELECT 
                 voucherno, admno, rollno, acadYear, financialYear, receiptId, tranDate, branch_name, Entrymode,
-                SUM(paid_amount) AS paid_amount,
-                SUM(adjusted_amount) AS adjusted_amount,
-                SUM(refund_amount) AS refund_amount,
-                SUM(fund_transfer_amount) AS fund_transfer_amount,
                 SUM(paid_amount + adjusted_amount + refund_amount + fund_transfer_amount) AS amount,
                 CASE 
                     WHEN Entrymode IN ('RCPT', 'JV', 'PMT') THEN 0
@@ -328,7 +324,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
             $transid = uniqid(mt_rand(), true);
 
             $result = $conn->query("
-                INSERT INTO commonfeecollection (moduleId, transId, admno, rollno, amount, brId, acadamicYear, financialYear, displayReceiptNo, Entrymode, PaidDate, inactive, paid_amount, adjusted_amount, refund_amount, fund_transfer_amount) 
+                INSERT INTO commonfeecollection (moduleId, transId, admno, rollno, amount, brId, acadamicYear, financialYear, displayReceiptNo, Entrymode, PaidDate, inactive) 
                 VALUES (
                     '1',
                     '{$transid}',
@@ -341,11 +337,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                     '{$row['receiptId']}',
                     '{$entrymode}',
                     '{$row['tranDate']}',
-                    '{$row['inactive']}',
-                    '{$row['paid_amount']}',
-                    '{$row['adjusted_amount']}',
-                    '{$row['refund_amount']}',
-                    '{$row['fund_transfer_amount']}'
+                    '{$row['inactive']}'
                 )
             ");
 
@@ -355,10 +347,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                 $commonFeeCollectionHeadWise = $conn->query("
                     SELECT 
                         f_name, 
-                        SUM(paid_amount) AS paid_amount,
-                        SUM(adjusted_amount) AS adjusted_amount,
-                        SUM(refund_amount) AS refund_amount,
-                        SUM(fund_transfer_amount) AS fund_transfer_amount,
                         SUM(paid_amount + adjusted_amount + refund_amount + fund_transfer_amount) AS amount
                     FROM temp_import
                     WHERE voucherno = '{$row['voucherno']}'
@@ -375,18 +363,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                     }
 
                     $conn->query("
-                        INSERT INTO commonfeecollectionheadwise (moduleId, receiptId, headId, headName, brid, amount, paid_amount, adjusted_amount, refund_amount, fund_transfer_amount)
+                        INSERT INTO commonfeecollectionheadwise (moduleId, receiptId, headId, headName, brid, amount)
                         SELECT 
                             '{$module_id}' AS moduleId,
                             '{$insert_id}' AS receiptId,
                             feetypes.id AS headId,
                             '{$rowChild['f_name']}' AS headName,
                             '{$brId}' AS brid,
-                            '{$rowChild['amount']}' AS amount,
-                            '{$rowChild['paid_amount']}' AS paid_amount,
-                            '{$rowChild['adjusted_amount']}' AS adjusted_amount,
-                            '{$rowChild['refund_amount']}' AS refund_amount,
-                            '{$rowChild['fund_transfer_amount']}' AS fund_transfer_amount
+                            '{$rowChild['amount']}' AS amount
                         FROM feetypes
                         WHERE feetypes.f_name = '{$rowChild['f_name']}' AND feetypes.br_id = '{$brId}'
                     ");
@@ -399,11 +383,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
         $financialTransaction = $conn->query("
             SELECT 
                 voucherno, admno, branch_name, acadYear, tranDate, Entrymode,
-                SUM(due_amount) AS due_amount,
-                SUM(concession_amount) AS concession_amount,
-                SUM(scholarship_amount) AS scholarship_amount,
-                SUM(write_off_amount) AS write_off_amount,
-                SUM(rev_concession_amount) AS rev_concession_amount,
                 SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount,
                 CASE 
                     WHEN SUM(concession_amount) > 0 THEN 1
@@ -425,7 +404,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
 
             $result = $conn->query("
                 INSERT INTO financialtran 
-                    (moduleid, transid, admno, amount, crdr, tranDate, acadYear, Entrymode, voucherno, brid, Typeofconcession, due_amount, concession_amount, scholarship_amount, write_off_amount, rev_concession_amount)
+                    (moduleid, transid, admno, amount, crdr, tranDate, acadYear, Entrymode, voucherno, brid, Typeofconcession)
                 VALUES (
                     '1',
                     '{$transid}',
@@ -437,12 +416,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                     '{$entrymode}',
                     '{$row['voucherno']}',
                     '{$brId}',
-                    '{$row['Typeofconcession']}',
-                    '{$row['due_amount']}',
-                    '{$row['concession_amount']}',
-                    '{$row['scholarship_amount']}',
-                    '{$row['write_off_amount']}',
-                    '{$row['rev_concession_amount']}'
+                    '{$row['Typeofconcession']}'
                 )
             ");
 
@@ -452,11 +426,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                 $financialTransactionHeadWise = $conn->query("
                     SELECT 
                         f_name, 
-                        SUM(due_amount) AS due_amount,
-                        SUM(concession_amount) AS concession_amount,
-                        SUM(scholarship_amount) AS scholarship_amount,
-                        SUM(write_off_amount) AS write_off_amount,
-                        SUM(rev_concession_amount) AS rev_concession_amount,
                         SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount
                     FROM temp_import
                     WHERE voucherno = '{$row['voucherno']}'
@@ -473,7 +442,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                     }
 
                     $conn->query("
-                        INSERT INTO financialtrandetail (financialTranId, moduleId, amount, headId, crcd, brid, head_name, due_amount, concession_amount, scholarship_amount, write_off_amount, rev_concession_amount)
+                        INSERT INTO financialtrandetail (financialTranId, moduleId, amount, headId, crcd, brid, head_name)
                         SELECT 
                             '{$insert_id}' AS financialTranId,
                             '{$module_id}' AS moduleId,
@@ -481,12 +450,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                             feetypes.id AS headId,
                             '{$crdr}' AS crcd,
                             '{$brId}' AS brid,
-                            '{$rowChild['f_name']}' AS head_name,
-                            '{$rowChild['due_amount']}' AS due_amount,
-                            '{$rowChild['concession_amount']}' AS concession_amount,
-                            '{$rowChild['scholarship_amount']}' AS scholarship_amount,
-                            '{$rowChild['write_off_amount']}' AS write_off_amount,
-                            '{$rowChild['rev_concession_amount']}' AS rev_concession_amount
+                            '{$rowChild['f_name']}' AS head_name
                         FROM feetypes
                         WHERE feetypes.f_name = '{$rowChild['f_name']}' AND feetypes.br_id = '{$brId}'
                     ");
