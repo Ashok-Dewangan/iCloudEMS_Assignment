@@ -1,0 +1,2 @@
+sr_no: 753671
+displayReceiptNo: is not available for multiple transaction

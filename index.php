@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                         $data[12],
                         $data[13],
                         $data[14],
-                        $data[15],
+                        strval($data[15]),
                         $data[16],
                         $data[17],
                         $data[18],
@@ -305,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
 
         $commonFeeCollection = $conn->query("
             SELECT 
-                voucherno, admno, rollno, acadYear, financialYear, receiptId, tranDate, branch_name, Entrymode,
+                receiptId, admno, rollno, tranDate, voucherno, acadYear, financialYear, branch_name, Entrymode,
                 SUM(paid_amount + adjusted_amount + refund_amount + fund_transfer_amount) AS amount,
                 CASE 
                     WHEN Entrymode IN ('RCPT', 'JV', 'PMT') THEN 0
@@ -314,11 +314,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                 END AS inactive
             FROM temp_import 
             WHERE Entrymode IN ('RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer')
-            GROUP BY voucherno
+            GROUP BY receiptId, admno, rollno, tranDate
         ");
 
         while ($row = $commonFeeCollection->fetch_assoc()) {
             $brId = $branches[$row['branch_name']] ?? 0;
+
+            $row['Entrymode'] = in_array($row['Entrymode'], ['REVSCHOLARSHIP', 'REVCONCESSION']) ? 'SCHOLARSHIPREV/REVCONCESSION' : $row['Entrymode'];
 
             $entrymode = $entryModeIds[$row['Entrymode']] ?? 0;
             $transid = uniqid(mt_rand(), true);
@@ -349,7 +351,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                         f_name, 
                         SUM(paid_amount + adjusted_amount + refund_amount + fund_transfer_amount) AS amount
                     FROM temp_import
-                    WHERE voucherno = '{$row['voucherno']}'
+                    WHERE receiptId = '{$row['receiptId']}'
                     GROUP BY f_name
                 ");
 
@@ -382,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
         // table financialtran - Red
         $financialTransaction = $conn->query("
             SELECT 
-                voucherno, admno, branch_name, acadYear, tranDate, Entrymode,
+                voucherno, tranDate, admno, branch_name, acadYear, Entrymode,
                 SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount,
                 CASE 
                     WHEN SUM(concession_amount) > 0 THEN 1
@@ -391,12 +393,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                 END AS Typeofconcession
             FROM temp_import 
             WHERE Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION')
-            GROUP BY voucherno
+            GROUP BY voucherno, tranDate, admno 
         ");
 
         while ($row = $financialTransaction->fetch_assoc()) {
             $brId = $branches[$row['branch_name']] ?? 0;
 
+            $row['Entrymode'] = in_array($row['Entrymode'], ['REVSCHOLARSHIP', 'REVCONCESSION']) ? 'SCHOLARSHIPREV/REVCONCESSION' : $row['Entrymode'];
             $crdr = $entryModes[$row['Entrymode']] ?? '';
             $entrymode = $entryModeIds[$row['Entrymode']] ?? 0;
 
