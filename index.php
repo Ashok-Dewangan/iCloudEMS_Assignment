@@ -248,9 +248,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
         while ($row = $commonFeeCollection->fetch_assoc()) {
             $brId = $branches[$row['branch_name']] ?? 0;
 
-            $row['Entrymode'] = in_array($row['Entrymode'], ['REVSCHOLARSHIP', 'REVCONCESSION']) ? 'SCHOLARSHIPREV/REVCONCESSION' : $row['Entrymode'];
+            if (!isset($entryModeIds[$row['Entrymode']])) {
+                $row['Entrymode'] = ucfirst(strtolower($row['Entrymode']));
+            }
+            $entrymode = $entryModeIds[$row['Entrymode']];
 
-            $entrymode = $entryModeIds[$row['Entrymode']] ?? 0;
             $transid = uniqid(mt_rand(), true);
 
             $module_id = $modules['academic'];
