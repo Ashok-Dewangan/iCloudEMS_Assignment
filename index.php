@@ -228,8 +228,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
             ");
         }
 
-        $greenEntryModes = ['RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer'];
-        $redEntryModes = ['DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION'];
+        // $greenEntryModes = ['RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer'];
+        // $redEntryModes = ['DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION'];
 
         $commonFeeCollection = $conn->query("
             SELECT 
@@ -327,7 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                     ELSE NULL
                 END AS Typeofconcession
             FROM temp_import 
-            WHERE Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION')
+            WHERE Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'REVSCHOLARSHIP', 'REVCONCESSION', 'CONCESSION')
             GROUP BY voucherno, tranDate, admno 
         ");
 
@@ -373,7 +373,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                         f_name, 
                         SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount
                     FROM temp_import
-                    WHERE voucherno = '{$row['voucherno']}' AND admno = '{$row['admno']}' AND tranDate = '{$row['tranDate']}' AND Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION')
+                    WHERE voucherno = '{$row['voucherno']}' AND admno = '{$row['admno']}' AND tranDate = '{$row['tranDate']}' AND Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'REVSCHOLARSHIP', 'REVCONCESSION', 'CONCESSION')
                     GROUP BY f_name
                 ");
 
