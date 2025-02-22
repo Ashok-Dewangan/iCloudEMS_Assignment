@@ -75,6 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                 $data[15] = sprintf("%.0f", $data[15]);
             }
 
+            if ($data[5] === 'FUNDTRANSFER') {
+                $data[5] = 'Fundtransfer';
+            }
+
             $data[1] = date('Y-m-d', strtotime($data[1]));
 
             // Escape strings to prevent SQL injection
@@ -242,15 +246,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                 END AS inactive
             FROM temp_import 
             WHERE Entrymode IN ('RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer')
-            GROUP BY receiptId, admno, rollno, tranDate
+            GROUP BY Entrymode
         ");
 
         while ($row = $commonFeeCollection->fetch_assoc()) {
             $brId = $branches[$row['branch_name']] ?? 0;
 
-            if (!isset($entryModeIds[$row['Entrymode']])) {
-                $row['Entrymode'] = ucfirst(strtolower($row['Entrymode']));
-            }
             $entrymode = $entryModeIds[$row['Entrymode']];
 
             $transid = uniqid(mt_rand(), true);
