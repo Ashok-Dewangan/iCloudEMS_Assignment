@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
     $createTable = "
         CREATE TABLE temp_import (
             sr_no INT,
-            tranDate VARCHAR(15),
+            tranDate DATE,
             acadYear VARCHAR(15),
             financialYear VARCHAR(15),
             category VARCHAR(50),
@@ -70,8 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
 
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
             // Convert large numbers to strings to prevent scientific notation (3.02E+11 issue)
-            $data[0]  = (string) $data[0];  // sr_no
-            $data[15] = (string) $data[15]; // receiptId
+
+            if (is_numeric($data[15]) && strpos($data[15], 'E+') !== false) {
+                $data[15] = sprintf("%.0f", $data[15]);
+            }
+
+            $data[1] = date('Y-m-d', strtotime($data[1]));
 
             // Escape strings to prevent SQL injection
             $data = array_map([$conn, "real_escape_string"], $data);
@@ -144,6 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
         echo "Scholarship: " . $row['total_scholarship'] . "<br>";
         echo "Refund: " . $row['total_refund'] . "<br>";
 
+
         // Distribute data to relevant tables
 
         // table- feecategory
@@ -179,15 +184,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
         }
 
         $entryModes = [];
-        $entryModeTypes = $conn->query("SELECT Entry_modename, crdr FROM entrymode");
+        $entryModeIds = [];
+        $entryModeTypes = $conn->query("SELECT Entry_modename, crdr, entrymodeno FROM entrymode");
         while ($row = $entryModeTypes->fetch_assoc()) {
             $entryModes[$row['Entry_modename']] = $row['crdr'];
-        }
-
-        $entryModeIds = [];
-        $entryModeTypes = $conn->query("SELECT Entry_modename, id FROM entrymode");
-        while ($row = $entryModeTypes->fetch_assoc()) {
-            $entryModeIds[$row['Entry_modename']] = $row['id'];
+            $entryModeIds[$row['Entry_modename']] = $row['entrymodeno'];
         }
 
         // Fetch all distinct f_name values from temp_import
@@ -285,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                         f_name, 
                         SUM(paid_amount + adjusted_amount + refund_amount + fund_transfer_amount) AS amount
                     FROM temp_import
-                    WHERE receiptId = '{$row['receiptId']}'
+                    WHERE receiptId = '{$row['receiptId']}' AND admno = '{$row['admno']}' AND rollno = '{$row['rollno']}' AND tranDate = '{$row['tranDate']}' AND Entrymode IN ('RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer')
                     GROUP BY f_name
                 ");
 
@@ -372,7 +373,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                         f_name, 
                         SUM(due_amount + concession_amount + scholarship_amount + write_off_amount + rev_concession_amount) AS amount
                     FROM temp_import
-                    WHERE voucherno = '{$row['voucherno']}'
+                    WHERE voucherno = '{$row['voucherno']}' AND admno = '{$row['admno']}' AND tranDate = '{$row['tranDate']}' AND Entrymode IN ('DUE', 'REVDUE', 'SCHOLARSHIP', 'SCHOLARSHIPREV/REVCONCESSION', 'CONCESSION')
                     GROUP BY f_name
                 ");
 
