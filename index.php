@@ -246,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['csv_file'])) {
                 END AS inactive
             FROM temp_import 
             WHERE Entrymode IN ('RCPT', 'REVRCPT', 'JV', 'REVJV', 'PMT', 'REVPMT', 'Fundtransfer')
-            GROUP BY Entrymode
+            GROUP BY receiptId, admno, rollno, tranDate
         ");
 
         while ($row = $commonFeeCollection->fetch_assoc()) {
